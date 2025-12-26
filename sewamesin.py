@@ -4,12 +4,8 @@ import pandas as pd
 import plotly.express as px
 from datetime import datetime
 
-# 1. KONFIGURASI HALAMAN
-st.set_page_config(
-    page_title="Monitoring Sewa ISG", 
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
+# 1. KONFIGURASI HALAMAN (KEMBALI KE STANDAR)
+st.set_page_config(page_title="Monitoring Sewa ISG", layout="wide")
 
 # Tambahkan baris ini untuk memaksa tema gelap (Dark Mode)
 st.markdown("""
@@ -179,4 +175,5 @@ except Exception as e:
     st.error(f"Terjadi error: {str(e)}. Periksa koneksi Google Sheets atau format data.")
 
     st.stop()
+
 
