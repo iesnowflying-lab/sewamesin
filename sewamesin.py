@@ -5,8 +5,21 @@ import plotly.express as px
 from datetime import datetime
 
 # 1. KONFIGURASI HALAMAN
-st.set_page_config(page_title="Monitoring Sewa ISG", layout="wide")
+st.set_page_config(
+    page_title="Monitoring Sewa ISG", 
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
 
+# Tambahkan baris ini untuk memaksa tema gelap (Dark Mode)
+st.markdown("""
+    <style>
+    .stApp {
+        background-color: #0E1117;
+        color: white;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 # CSS: Menghapus space atas dan mengatur font tabel
 st.markdown("""
     <style>
@@ -166,3 +179,4 @@ except Exception as e:
     st.error(f"Terjadi error: {str(e)}. Periksa koneksi Google Sheets atau format data.")
 
     st.stop()
+
