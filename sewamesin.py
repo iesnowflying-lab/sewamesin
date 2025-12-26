@@ -112,7 +112,7 @@ try:
                             df_pie, 
                             values='Qty', 
                             names='Jenis_Mesin', 
-                            title=f"Distribusi Unit untuk {customer}",
+                            title=f"{customer}",
                             hole=0.3  # Donut chart
                         )
                         # Update layout: hilangkan legend, ukuran lebih besar, dan margin
@@ -164,4 +164,5 @@ try:
 
 except Exception as e:
     st.error(f"Terjadi error: {str(e)}. Periksa koneksi Google Sheets atau format data.")
+
     st.stop()
