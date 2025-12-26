@@ -43,15 +43,14 @@ try:
     df['Jenis_Mesin'] = df['Jenis_Mesin'].astype(str).str.strip()
     df['Qty'] = pd.to_numeric(df['Qty'], errors='coerce').fillna(0).astype(int)
     
-    # Penanganan kolom No_Surat agar sesuai dengan Google Sheets
+    # Penanganan kolom No_Surat
     if 'No_Surat' not in df.columns:
-        # Cek kemungkinan variasi nama (no_surat / No Surat)
         if 'no_surat' in df.columns:
             df = df.rename(columns={'no_surat': 'No_Surat'})
         elif 'No Surat' in df.columns:
             df = df.rename(columns={'No Surat': 'No_Surat'})
         else:
-            df['No_Surat'] = "-" # Jika kolom benar-benar tidak ada
+            df['No_Surat'] = "-"
 
     # Konversi Tanggal & Hitung Sisa Hari
     df['Start_Sewa'] = pd.to_datetime(df['Start_Sewa'], errors='coerce').dt.date
@@ -73,31 +72,20 @@ try:
         styles = [''] * len(row)
         sisa_index = row.index.get_loc('Sisa')
         sisa = row['Sisa']
-        
         if sisa < 0:
-            styles[sisa_index] = 'background-color: #ff4b4b; color: white' # Merah
+            styles[sisa_index] = 'background-color: #ff4b4b; color: white'
         elif sisa < 3:
-            styles[sisa_index] = 'background-color: #ffa500; color: black' # Orange
+            styles[sisa_index] = 'background-color: #ffa500; color: black'
         elif sisa < 6:
-            styles[sisa_index] = 'background-color: #ffff00; color: black' # Kuning
-            
+            styles[sisa_index] = 'background-color: #ffff00; color: black'
         return styles
 
-    # UPDATE URUTAN KOLOM: No_Surat diletakkan setelah 'To'
-    display_columns = [
-        'Jenis_Mesin', 'Merek', 'Type', 'Qty', 'From', 'To', 
-        'No_Surat', 'Start_Sewa', 'Akhir_Sewa', 'Sisa'
-    ]
-
-    # Terapkan styling
+    display_columns = ['Jenis_Mesin', 'Merek', 'Type', 'Qty', 'From', 'To', 'No_Surat', 'Start_Sewa', 'Akhir_Sewa', 'Sisa']
     styled_df = df_monitor[display_columns].style.apply(highlight_sisa_hari, axis=1)
 
     st.dataframe(
         styled_df,
         column_config={
-            "Jenis_Mesin": st.column_config.TextColumn("Jenis Mesin"),
-            "Qty": st.column_config.NumberColumn("Qty", format="%d"),
-            "To": st.column_config.TextColumn("To"),
             "No_Surat": st.column_config.TextColumn("No Surat", width="medium"),
             "Start_Sewa": st.column_config.DateColumn("Start Sewa", format="DD/MM/YYYY"),
             "Akhir_Sewa": st.column_config.DateColumn("Akhir Sewa", format="DD/MM/YYYY"),
@@ -109,7 +97,7 @@ try:
 
     st.divider()
 
-    # --- BAGIAN 2: GRAFIK PIE ---
+    # --- BAGIAN 2: GRAFIK PIE LOKASI ---
     st.subheader("📈 Distribusi Unit Berdasarkan Lokasi")
     list_customer = df_monitor['To'].unique()
 
@@ -121,14 +109,13 @@ try:
                 with cols[i]:
                     df_cust = df_monitor[df_monitor['To'] == customer]
                     df_pie = df_cust.groupby('Jenis_Mesin')['Qty'].sum().reset_index()
-
                     if not df_pie.empty and df_pie['Qty'].sum() > 0:
                         fig = px.pie(df_pie, values='Qty', names='Jenis_Mesin', title=f"{customer}", hole=0.3)
                         fig.update_layout(height=400, showlegend=False, margin=dict(l=20, r=20, t=40, b=20))
                         fig.update_traces(textinfo='percent+label+value', insidetextorientation='horizontal')
                         st.plotly_chart(fig, use_container_width=True)
-                        
-    # --- BAGIAN 3: GRAFIK KESELURUHAN ---
+
+    # --- BAGIAN 3: GRAFIK KESELURUHAN (PINDAH KE DALAM TRY) ---
     st.divider()
     st.subheader("📊 Distribusi Keseluruhan")
     df_pie_overall = df_monitor.groupby('Jenis_Mesin')['Qty'].sum().reset_index()
@@ -141,6 +128,4 @@ try:
 except Exception as e:
     st.error(f"Terjadi error: {str(e)}")
 
-
-st.stop()
-
+# st.stop() dihapus dari sini agar skrip bisa menyelesaikan render seluruh elemen
