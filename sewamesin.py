@@ -115,36 +115,34 @@ try:
                         fig.update_traces(textinfo='percent+label+value', insidetextorientation='horizontal')
                         st.plotly_chart(fig, use_container_width=True)
 
-# --- BAGIAN 3: GRAFIK KESELURUHAN (OPSIONAL, SEBAGAI TAMBAHAN) ---
-st.divider()
-st.subheader("📊 Distribusi Keseluruhan Berdasarkan Jenis Mesin")
-df_pie_overall = df_monitor.groupby('Jenis_Mesin')['Qty'].sum().reset_index()
-if not df_pie_overall.empty and df_pie_overall['Qty'].sum() > 0:
-fig_overall = px.pie(
-df_pie_overall, 
-values='Qty', 
-names='Jenis_Mesin', 
-title="Distribusi Keseluruhan Unit"
-)
-# Update layout: hilangkan legend, ukuran lebih besar, dan margin (sama seperti di atas)
-fig_overall.update_layout(
-height=400,
-width=400,
-showlegend=False,  # Hilangkan legend
-margin=dict(l=20, r=20, t=40, b=20)
-)
-# Update traces: tampilkan persentase, jumlah mesin (value), dan jenis mesin (label) di dalam pie
-# Ubah insidetextorientation ke 'horizontal' agar tulisan tidak miring
-fig_overall.update_traces(
-textinfo='percent+label+value',  # Menampilkan persentase, label (jenis mesin), dan nilai (jumlah mesin)
-insidetextorientation='horizontal'  # Tulisan horizontal, bukan radial/miring
-)
-st.plotly_chart(fig_overall, use_container_width=True)
-else:
-st.write("Tidak ada data untuk grafik keseluruhan.")
+    # --- BAGIAN 3: GRAFIK KESELURUHAN (UPDATE: Legend Dihapus & Info Diperbanyak) ---
+    st.divider()
+    st.subheader("📊 Distribusi Keseluruhan")
+    df_pie_overall = df_monitor.groupby('Jenis_Mesin')['Qty'].sum().reset_index()
+    if not df_pie_overall.empty:
+        fig_overall = px.pie(
+            df_pie_overall, 
+            values='Qty', 
+            names='Jenis_Mesin', 
+            title="Total Semua Mesin Berdasarkan Jenis",
+            hole=0.2
+        )
+        
+        # Menghapus legend agar diagram lebih lebar
+        fig_overall.update_layout(
+            height=600, # Tinggi ditingkatkan agar makin besar
+            showlegend=False, 
+            margin=dict(l=50, r=50, t=50, b=50)
+        )
+        
+        # Menampilkan Label (Jenis Mesin), Value (Jumlah), dan Persentase
+        fig_overall.update_traces(
+            textinfo='label+value+percent', 
+            insidetextorientation='horizontal',
+            textfont_size=14
+        )
+        
+        st.plotly_chart(fig_overall, use_container_width=True)
 
 except Exception as e:
     st.error(f"Terjadi error: {str(e)}")
-
-# st.stop() dihapus dari sini agar skrip bisa menyelesaikan render seluruh elemen
-
