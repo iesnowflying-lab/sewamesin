@@ -5,144 +5,148 @@ import plotly.express as px
 from datetime import datetime
 
 # 1. KONFIGURASI HALAMAN
-st.set_page_config(page_title="Monitoring Sewa ISG", layout="wide")
+st.set_page_config(
+    page_title="Monitoring Peminjaman Mesin - sewa mesin01",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
+# 2. CUSTOM CSS
 st.markdown("""
     <style>
-    .stApp {
-        background-color: #0E1117;
-        color: white;
+    .block-container { padding-top: 1rem; padding-bottom: 0rem; }
+    .stApp { background-color: #fdfdfd; color: #333333; }
+    [data-testid="stMetric"] {
+        background-color: #ffffff;
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        border: 1px solid #f0f0f0;
     }
-    .block-container {
-        padding-top: 1rem;
-        padding-bottom: 0rem;
+    .stButton button { 
+        width: 100%; 
+        height: 85px; 
+        border-radius: 15px; 
+        font-weight: bold; 
     }
-    html, body, [class*="css"] { font-size: 1.1rem; }
-    [data-testid="stDataFrame"] { font-size: 1.3rem; }
+    .double-line {
+        border-top: 3px solid #cbd5e1;
+        border-bottom: 3px solid #cbd5e1;
+        height: 8px;
+        margin: 5px 0 25px 0;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("📊 Monitoring Peminjaman Mesin")
-
-# 2. KONEKSI KE GOOGLE SHEETS
+# 3. KONEKSI DATA
 url_sheets = "https://docs.google.com/spreadsheets/d/1BvYyCa0DgJrjuMYQzFEL_49_StYhr71rzvNJ8crwHaU/edit?usp=sharing"
 conn = st.connection("gsheets", type=GSheetsConnection)
 
+@st.cache_data(ttl=60)
 def load_data():
     return conn.read(spreadsheet=url_sheets, ttl="0")
 
+# --- FUNGSI WARNA KHUSUS KOLOM SISA ---
+def color_sisa_only(val):
+    try:
+        # Mengambil angka dari teks "X Hari"
+        num = int(str(val).split()[0])
+        if num <= 0:
+            return 'background-color: #ffcccc; color: black;' # Merah
+        elif 1 <= num <= 7:
+            return 'background-color: #fff9c4; color: black;' # Kuning
+    except:
+        pass
+    return ''
+
+# --- FUNGSI DIAGRAM PIE/DONUT ---
+def create_min_donut(dataframe, site_name, colors):
+    df_site = dataframe[dataframe['To'] == site_name].groupby('Jenis_Mesin')['Qty'].sum().reset_index()
+    if df_site.empty: return None
+    total_site = df_site['Qty'].sum()
+    df_site['custom_label'] = df_site.apply(
+        lambda x: f"{x['Jenis_Mesin']} / {x['Qty']} / {(x['Qty']/total_site*100):.1f}%", axis=1
+    )
+    fig = px.pie(df_site, values='Qty', names='Jenis_Mesin', hole=0.5, color_discrete_sequence=colors)
+    fig.update_traces(
+        textinfo='text', text=df_site['custom_label'], textposition='outside', 
+        marker=dict(line=dict(color='#FFFFFF', width=2)), textfont_size=14
+    )
+    fig.add_annotation(text=site_name, x=0.5, y=0.5, showarrow=False, font=dict(size=30, family="Arial Black"))
+    fig.update_layout(showlegend=False, height=650, margin=dict(t=50, b=50, l=10, r=10))
+    return fig
+
+# 4. HEADER
+st.title("📡 Monitoring Peminjaman Mesin")
+st.markdown('<div class="double-line"></div>', unsafe_allow_html=True)
+
 try:
-    df = load_data()
-
-    if df.empty:
-        st.error("Data dari Google Sheets kosong.")
-        st.stop()
-
-    # --- PEMBERSIHAN DATA ---
+    df_raw = load_data()
+    df = df_raw.copy()
     df['To'] = df['To'].astype(str).str.strip()
-    df['Jenis_Mesin'] = df['Jenis_Mesin'].astype(str).str.strip()
     df['Qty'] = pd.to_numeric(df['Qty'], errors='coerce').fillna(0).astype(int)
-    
-    # Penanganan kolom No_Surat
-    if 'No_Surat' not in df.columns:
-        if 'no_surat' in df.columns:
-            df = df.rename(columns={'no_surat': 'No_Surat'})
-        elif 'No Surat' in df.columns:
-            df = df.rename(columns={'No Surat': 'No_Surat'})
-        else:
-            df['No_Surat'] = "-"
-
-    # Konversi Tanggal & Hitung Sisa Hari
-    df['Start_Sewa'] = pd.to_datetime(df['Start_Sewa'], errors='coerce').dt.date
     df['Akhir_Sewa'] = pd.to_datetime(df['Akhir_Sewa'], errors='coerce').dt.date
+    
     hari_ini = datetime.now().date()
     df['Sisa'] = df['Akhir_Sewa'].apply(lambda x: (x - hari_ini).days if pd.notna(x) else 0)
-
-    # Filter Status Belum Kembali
     df_monitor = df[df['Status_Kembali'] == False].sort_values(by='Akhir_Sewa')
 
-    if df_monitor.empty:
-        st.warning("Tidak ada mesin yang belum dikembalikan.")
-        st.stop()
+    # --- METRICS & REFRESH ---
+    m1, m2, m3, m4 = st.columns([1, 1, 1, 0.6])
+    total_unit = df_monitor['Qty'].sum()
+    m1.metric("Total Unit Disewa", f"{total_unit} Unit")
+    m2.metric("Deadline < 7 Hari", f"{df_monitor[df_monitor['Sisa'] <= 7].shape[0]} Mesin")
+    m3.metric("Total Lokasi", f"{df_monitor['To'].nunique()} Lokasi")
+    with m4:
+        st.write("") 
+        if st.button('🔄 Refresh Data'):
+            st.cache_data.clear()
+            st.rerun()
 
-    # --- BAGIAN 1: TABEL REKAP ---
-    st.subheader("📋 Rekap Peminjaman Mesin")
+    # --- TABEL ---
+    st.subheader("📋 Detail Peminjaman")
+    df_table = df_monitor[['Jenis_Mesin', 'Merek', 'Type', 'Qty', 'To', 'Start_Sewa', 'Akhir_Sewa', 'Sisa']].copy()
+    
+    # Format agar rata kiri dengan menambahkan satuan secara manual
+    df_table['Qty'] = df_table['Qty'].astype(str) + " Unit"
+    df_table['Sisa'] = df_table['Sisa'].astype(str) + " Hari"
+    df_table = df_table.rename(columns={'Sisa': 'Sisa Hari'})
 
-    def highlight_sisa_hari(row):
-        styles = [''] * len(row)
-        sisa_index = row.index.get_loc('Sisa')
-        sisa = row['Sisa']
-        if sisa < 0:
-            styles[sisa_index] = 'background-color: #ff4b4b; color: white'
-        elif sisa < 3:
-            styles[sisa_index] = 'background-color: #ffa500; color: black'
-        elif sisa < 6:
-            styles[sisa_index] = 'background-color: #ffff00; color: black'
-        return styles
+    # Terapkan warna hanya di kolom Sisa Hari agar tidak merusak format tanggal
+    styled_df = df_table.style.applymap(color_sisa_only, subset=['Sisa Hari'])
+    st.dataframe(styled_df, hide_index=True, use_container_width=True)
 
-    display_columns = ['Jenis_Mesin', 'Merek', 'Type', 'Qty', 'From', 'To', 'No_Surat', 'Start_Sewa', 'Akhir_Sewa', 'Sisa']
-    styled_df = df_monitor[display_columns].style.apply(highlight_sisa_hari, axis=1)
+    st.markdown("---")
 
-    st.dataframe(
-        styled_df,
-        column_config={
-            "No_Surat": st.column_config.TextColumn("No Surat", width="medium"),
-            "Start_Sewa": st.column_config.DateColumn("Start Sewa", format="DD/MM/YYYY"),
-            "Akhir_Sewa": st.column_config.DateColumn("Akhir Sewa", format="DD/MM/YYYY"),
-            "Sisa": st.column_config.NumberColumn("Sisa Hari", format="%d hr"),
-        },
-        hide_index=True,
-        use_container_width=True
+    # --- DIAGRAM DONUT ---
+    st.subheader("📍 Sebaran Unit Berdasarkan Lokasi")
+    col_isg, col_irg = st.columns(2)
+    with col_isg:
+        f_isg = create_min_donut(df_monitor, 'ISG', px.colors.qualitative.Pastel)
+        if f_isg: st.plotly_chart(f_isg, use_container_width=True)
+    with col_irg:
+        f_irg = create_min_donut(df_monitor, 'IRG', px.colors.qualitative.Safe)
+        if f_irg: st.plotly_chart(f_irg, use_container_width=True)
+
+    st.markdown("---")
+    
+    # --- DIAGRAM BATANG ---
+    st.subheader("📊 Total Semua Jenis Mesin (ISG + IRG)")
+    df_total = df_monitor.groupby('Jenis_Mesin')['Qty'].sum().sort_values(ascending=True).reset_index()
+    total_populasi = df_total['Qty'].sum()
+    df_total['Persen'] = (df_total['Qty'] / total_populasi * 100).round(1)
+    df_total['Label'] = df_total.apply(lambda x: f"{x['Qty']} Unit ({x['Persen']}%)", axis=1)
+
+    fig_bar = px.bar(df_total, x='Qty', y='Jenis_Mesin', orientation='h', text='Label')
+    fig_bar.update_traces(marker_color='#3b82f6', textposition='auto', textfont_size=12, cliponaxis=False)
+    fig_bar.update_layout(
+        showlegend=False, height=500, xaxis_title=None, yaxis_title=None, 
+        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+        xaxis=dict(ticksuffix=" Unit", showgrid=True, gridcolor='#f1f5f9', range=[0, df_total['Qty'].max() * 1.3]),
+        margin=dict(l=10, r=10, t=20, b=20)
     )
-
-    st.divider()
-
-    # --- BAGIAN 2: GRAFIK PIE LOKASI ---
-    st.subheader("📈 Distribusi Unit Berdasarkan Lokasi")
-    list_customer = df_monitor['To'].unique()
-
-    if len(list_customer) > 0:
-        max_cols_per_row = 4
-        for start in range(0, len(list_customer), max_cols_per_row):
-            cols = st.columns(min(max_cols_per_row, len(list_customer) - start))
-            for i, customer in enumerate(list_customer[start:start + max_cols_per_row]):
-                with cols[i]:
-                    df_cust = df_monitor[df_monitor['To'] == customer]
-                    df_pie = df_cust.groupby('Jenis_Mesin')['Qty'].sum().reset_index()
-                    if not df_pie.empty and df_pie['Qty'].sum() > 0:
-                        fig = px.pie(df_pie, values='Qty', names='Jenis_Mesin', title=f"{customer}", hole=0.3)
-                        fig.update_layout(height=400, showlegend=False, margin=dict(l=20, r=20, t=40, b=20))
-                        fig.update_traces(textinfo='percent+label+value', insidetextorientation='horizontal')
-                        st.plotly_chart(fig, use_container_width=True)
-
-    # --- BAGIAN 3: GRAFIK KESELURUHAN (UPDATE: Legend Dihapus & Info Diperbanyak) ---
-    st.divider()
-    st.subheader("📊 Distribusi Keseluruhan")
-    df_pie_overall = df_monitor.groupby('Jenis_Mesin')['Qty'].sum().reset_index()
-    if not df_pie_overall.empty:
-        fig_overall = px.pie(
-            df_pie_overall, 
-            values='Qty', 
-            names='Jenis_Mesin', 
-            title="Total Semua Mesin Berdasarkan Jenis",
-            hole=0.2
-        )
-        
-        # Menghapus legend agar diagram lebih lebar
-        fig_overall.update_layout(
-            height=600, # Tinggi ditingkatkan agar makin besar
-            showlegend=False, 
-            margin=dict(l=50, r=50, t=50, b=50)
-        )
-        
-        # Menampilkan Label (Jenis Mesin), Value (Jumlah), dan Persentase
-        fig_overall.update_traces(
-            textinfo='label+value+percent', 
-            insidetextorientation='horizontal',
-            textfont_size=14
-        )
-        
-        st.plotly_chart(fig_overall, use_container_width=True)
+    st.plotly_chart(fig_bar, use_container_width=True)
 
 except Exception as e:
-    st.error(f"Terjadi error: {str(e)}")
+    st.error(f"❌ Kesalahan: {e}")
