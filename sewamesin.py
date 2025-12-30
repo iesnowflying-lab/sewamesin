@@ -132,7 +132,7 @@ try:
     st.markdown("---")
     
     # --- DIAGRAM BATANG ---
-    st.subheader("📊 Total Semua Jenis Mesin (ISG + IRG)")
+    st.subheader("📊 Total Semua Jenis Mesin")
     df_total = df_monitor.groupby('Jenis_Mesin')['Qty'].sum().sort_values(ascending=True).reset_index()
     total_populasi = df_total['Qty'].sum()
     df_total['Persen'] = (df_total['Qty'] / total_populasi * 100).round(1)
@@ -150,3 +150,4 @@ try:
 
 except Exception as e:
     st.error(f"❌ Kesalahan: {e}")
+
