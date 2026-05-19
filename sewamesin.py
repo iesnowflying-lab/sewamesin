@@ -116,7 +116,8 @@ try:
     df_table['Akhir_Sewa'] = pd.to_datetime(df_table['Akhir_Sewa']).dt.strftime('%d/%m/%Y')
     
     # Terapkan warna hanya di kolom Sisa Hari agar tidak merusak format tanggal
-    styled_df = df_table.style.applymap(color_sisa_only, subset=['Sisa Hari'])
+    # Baris baru yang sesuai dengan standar Pandas terbaru
+    styled_df = df_table.style.map(color_sisa_only, subset=['Sisa Hari'])
     st.dataframe(styled_df, hide_index=True, use_container_width=True)
 
     st.markdown("---")
